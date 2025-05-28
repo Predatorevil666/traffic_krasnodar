@@ -1,0 +1,188 @@
+<!-- <!-- <!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>2GIS Монитор пробок</title>
+    <style>
+        #map { 
+            width: 600px; 
+            height: 400px; 
+            border: 2px solid #333;
+            margin: 20px;
+        }
+        #status {
+            font-family: Arial, sans-serif;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="status">Загрузка карты...</div>
+
+    <script>
+        // 1. Функция загрузки API
+        function loadMapGL() {
+            return new Promise((resolve, reject) => {
+                if (window.mapgl) return resolve();
+                
+                const script = document.createElement('script');
+                script.src = 'https://mapgl.2gis.com/api/js/v1';
+                script.charset = 'UTF-8';
+                script.onload = () => {
+                    console.log('Скрипт API загружен');
+                    let attempts = 0;
+                    const check = setInterval(() => {
+                        if (window.mapgl) {
+                            console.log('API mapgl доступен');
+                            clearInterval(check);
+                            resolve();
+                        } else if (attempts++ > 10) {
+                            clearInterval(check);
+                            reject(new Error('API не инициализировался'));
+                        }
+                    }, 100);
+                };
+                script.onerror = () => {
+                    console.error('Ошибка загрузки скрипта API');
+                    reject(new Error('Ошибка загрузки скрипта'));
+                };
+                document.head.appendChild(script);
+            });
+        }
+
+        // 2. Основная функция инициализации
+        async function initMap() {
+            try {
+                document.getElementById('status').textContent = 'Загрузка API 2GIS...';
+                await loadMapGL();
+                
+                document.getElementById('status').textContent = 'Инициализация карты...';
+                const map = new mapgl.Map('map', {
+                    center: [37.6176, 55.7558],
+                    zoom: 13,
+                    key: 'b5e9ec65-2d85-4263-8c32-c62034f0e0c9',
+                    trafficControl: true
+                });
+
+                // Проверяем доступность сервиса пробок
+                if (!map.trafficControl) {
+                    console.error('Сервис пробок недоступен!');
+                    document.getElementById('status').textContent = 'Сервис пробок недоступен';
+                    return;
+                }
+
+                map.on('load', () => {
+                    console.log('Карта загружена');
+                    map.trafficControl.show();
+                    document.getElementById('status').textContent = 'Карта готова. Ожидаем данные о пробках...';
+                    
+                    // Подписка на событие пробок
+                    map.on('trafficscore', (e) => {
+                        const score = e.score;
+                        console.log('Балл пробок:', score);
+                        document.getElementById('status').textContent = 
+                            `Текущий балл пробок: ${score} (${new Date().toLocaleTimeString()})`;
+                    });
+                    
+                    // Альтернативный способ получения пробок
+                    setTimeout(() => {
+                        if (map.trafficControl) {
+                            console.log('Проверка доступности сервиса пробок:', 
+                                'isShown:', map.trafficControl.isShown(),
+                                'isAvailable:', map.trafficControl.isAvailable());
+                        }
+                    }, 5000);
+                });
+
+                // Обработчик ошибок карты
+                map.on('error', (err) => {
+                    console.error('Ошибка карты:', err);
+                    document.getElementById('status').textContent = `Ошибка: ${err.message}`;
+                });
+
+            } catch (error) {
+                console.error('Ошибка:', error);
+                document.getElementById('status').textContent = 'Ошибка: ' + error.message;
+            }
+        }
+
+        // 3. Запуск после полной загрузки DOM
+        if (document.readyState !== 'loading') {
+            initMap();
+        } else {
+            document.addEventListener('DOMContentLoaded', initMap);
+        }
+        
+        // 4. Альтернативный способ получения пробок (если событие не срабатывает)
+        function fetchTrafficData() {
+            fetch('https://catalog.api.2gis.com/3.0/traffic?key=b5e9ec65-2d85-4263-8c32-c62034f0e0c9&point=55.7558,37.6176')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.result && data.result.score) {
+                        console.log('Балл пробок (через API):', data.result.score);
+                    }
+                })
+                .catch(error => console.error('Ошибка запроса пробок:', error));
+        }
+        
+        // Вызываем через 10 секунд после загрузки
+        setTimeout(fetchTrafficData, 10000);
+    </script>
+</body>
+</html> -->
+
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Яндекс Карты с пробками</title>
+    <style>
+        #map {
+            width: 600px;
+            height: 400px;
+            border: 2px solid #333;
+            margin: 20px;
+        }
+        #status {
+            font-family: Arial, sans-serif;
+            padding: 10px;
+        }
+    </style>
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=d5750a10-ac03-4dd0-929f-cef44c512341&lang=ru_RU&load=package.full"></script> type="text/javascript"></script>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="status">Загрузка карты...</div>
+
+    <script>
+        ymaps.ready(init);
+
+        function init() {
+            const map = new ymaps.Map('map', {
+                center: [55.7558, 37.6176], // Москва
+                zoom: 10,
+                controls: ['trafficControl'] // Добавляем элемент управления пробками
+            });
+
+            // Проверяем доступность сервиса пробок
+            if (map.trafficControl) {
+                console.log('Сервис пробок доступен');
+                document.getElementById('status').textContent = 'Карта готова. Ожидаем данные о пробках...';
+            } else {
+                console.error('Сервис пробок недоступен!');
+                document.getElementById('status').textContent = 'Сервис пробок недоступен';
+            }
+
+            // Подписка на событие пробок
+            map.events.add('traffic', function (e) {
+                const trafficData = e.get('traffic');
+                console.log('Данные о пробках:', trafficData);
+                // Обработка данных о пробках
+            });
+        }
+    </script>
+</body>
+</html>
+

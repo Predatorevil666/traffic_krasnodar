@@ -1,0 +1,104 @@
+/* Стили для календаря react-datepicker */
+.react-datepicker {
+  font-family: inherit;
+  border: none !important;
+  width: 100%;
+}
+
+.react-datepicker__month-container {
+  width: 100%;
+}
+
+.react-datepicker__header {
+  background-color: white;
+  border-bottom: 1px solid #f0f0f0;
+  padding-top: 10px;
+}
+
+.react-datepicker__current-month {
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.react-datepicker__day-names {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 8px;
+}
+
+.react-datepicker__day-name {
+  width: 36px;
+  font-weight: 500;
+  color: #666;
+}
+
+.react-datepicker__month {
+  margin: 0;
+}
+
+.react-datepicker__week {
+  display: flex;
+  justify-content: space-around;
+}
+
+/* Change day shape from circle to rounded rectangle */
+.react-datepicker__day {
+  width: 36px;
+  height: 36px;
+  line-height: 36px;
+  margin: 0;
+  border-radius: 6px !important; /* Smaller border radius for rounded corners */
+}
+
+.react-datepicker__day:hover {
+  background-color: #f0f0f0;
+  border-radius: 6px !important;
+}
+
+/* Make all selected dates solid black with rectangular shape */
+.react-datepicker__day--selected,
+.react-datepicker__day--in-range,
+.react-datepicker__day--in-selecting-range,
+.react-datepicker__day--keyboard-selected {
+  background-color: #000000 !important;
+  color: white !important;
+  border-radius: 6px !important;
+}
+
+/* Ensure start and end dates in range are also solid black */
+.react-datepicker__day--range-start,
+.react-datepicker__day--range-end,
+.react-datepicker__day--selecting-range-start,
+.react-datepicker__day--selecting-range-end {
+  background-color: #000000 !important;
+  color: white !important;
+  border-radius: 6px !important;
+}
+
+/* Override any specific in-range styles that might be making dates lighter */
+.react-datepicker__day--in-range:not(.react-datepicker__day--range-start):not(.react-datepicker__day--range-end) {
+  background-color: #000000 !important;
+  color: white !important;
+  border-radius: 6px !important;
+}
+
+.react-datepicker__day--disabled {
+  color: #ccc;
+}
+
+.react-datepicker__navigation {
+  top: 10px;
+}
+
+/* Override any inline styles that might be applied */
+.react-datepicker__day[style*="background"] {
+  background-color: #000000 !important;
+  border-radius: 6px !important;
+}
+
+/* Ensure all days in the range have the same appearance */
+.react-datepicker__day--in-range {
+  background-color: #000000 !important;
+  color: white !important;
+  border-radius: 6px !important;
+}
