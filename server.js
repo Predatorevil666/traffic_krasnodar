@@ -21,3 +21,11 @@ app.use(express.static('backend'));
 app.listen(PORT, () => {
   console.log(`Сервер запущен на порту ${PORT}`);
 });
+
+app.get('/2gis', (req, res) => {
+  let html = fs.readFileSync(path.join(__dirname, 'backend/index_2gis.html'), 'utf8');
+  // Заменяем placeholder на реальный ключ 2GIS
+  const apiKey = process.env.DGIS_API_KEY || 'руфьуз2с3в';
+  html = html.replace('__2GIS_API_KEY__', apiKey);
+  res.send(html);
+});

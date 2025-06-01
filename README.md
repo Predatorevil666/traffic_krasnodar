@@ -24,6 +24,7 @@ npm install
 
 ```
 YANDEX_MAPS_API_KEY=ваш-ключ-api
+DGIS_API_KEY=ваш-ключ-api
 ```
 
 ## Запуск
@@ -34,6 +35,9 @@ node server.js
 ```
 
 После запуска откройте браузер и перейдите по адресу:
+http://localhost:3000 # Яндекс.Карты
+http://localhost:3000/2gis # 2GIS
+
 
 ## Как это работает
 
