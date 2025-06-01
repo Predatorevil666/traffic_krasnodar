@@ -1,0 +1,26 @@
+{
+  "name": "traffic_krasnodar",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Predatorevil666/traffic_krasnodar.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Predatorevil666/traffic_krasnodar/issues"
+  },
+  "homepage": "https://github.com/Predatorevil666/traffic_krasnodar#readme",
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0"
+  }
+}
