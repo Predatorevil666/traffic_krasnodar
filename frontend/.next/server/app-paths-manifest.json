@@ -1,3 +1,4 @@
 {
+  "/api/save-traffic-minute/route": "app/api/save-traffic-minute/route.js",
   "/page": "app/page.js"
 }

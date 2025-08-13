@@ -1,30 +1,97 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { getTrafficData } from "@/lib/mock-data"
-import { TrafficLegend } from "./traffic-legend"
+import { useEffect, useState, useRef } from "react";
+// import { getTrafficData } from "@/lib/mock-data";
+import { TrafficLegend } from "./traffic-legend";
 
 export default function YandexMapIframe() {
-  const [trafficLevel, setTrafficLevel] = useState(0)
-  const [currentTime, setCurrentTime] = useState(new Date())
+  const [trafficLevel, setTrafficLevel] = useState(0);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const lastSavedHour = useRef<number | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Имитация обновления данных о пробках каждую минуту
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+
+      if (event.data.type === "TRAFFIC_SCORE_UPDATE") {
+        setTrafficLevel(event.data.payload.score);
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+
+  // const saveHourlyData = async (date: string, level: number, time: string) => {
+  //   try {
+  //     const response = await fetch("/api/save-traffic-hourly", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ date, level, time }),
+  //     });
+
+  //     if (!response.ok) {
+  //       const errorData = await response.json();
+  //       throw new Error(errorData.error || "Ошибка сохранения");
+  //     }
+
+  //     console.log("Данные сохранены за час:", { date, level, time });
+  //   } catch (error) {
+  //     console.error("Ошибка сохранения данных:", error);
+  //   }
+  // };
+
+  const saveMinuteData = async (data: Omit<TrafficRecord, "id">) => {
+    try {
+      const response = await fetch("/api/save-traffic-minute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.details || "Ошибка сохранения");
+      }
+
+      const result = await response.json();
+      console.log("Данные сохранены с ID:", result.newId);
+    } catch (error) {
+      console.error("Ошибка сохранения данных:", error);
+    }
+  };
+
   useEffect(() => {
     const interval = setInterval(() => {
-      const newTime = new Date()
-      setCurrentTime(newTime)
+      const newTime = new Date();
+      setCurrentTime(newTime);
 
-      // Получаем данные о пробках
-      const trafficData = getTrafficData(newTime)
-      setTrafficLevel(trafficData.level)
-    }, 60000)
+      // Формируем запись без ID
+      const minuteRecord = {
+        date: newTime.toLocaleDateString("ru-RU"),
+        time: newTime.toLocaleTimeString("ru-RU"),
+        level: trafficLevel,
+      };
 
-    // Инициализация данных
-    const trafficData = getTrafficData(new Date())
-    setTrafficLevel(trafficData.level)
+      saveMinuteData(minuteRecord);
 
-    return () => clearInterval(interval)
-  }, [])
+      const currentHour = newTime.getHours();
+      if (lastSavedHour.current !== currentHour) {
+        lastSavedHour.current = currentHour;
+
+        const dateStr = newTime.toISOString().split("T")[0];
+        const timeStr = `${currentHour.toString().padStart(2, "0")}:00:00`;
+
+        // saveHourlyData(dateStr, trafficLevel, timeStr);
+      }
+    }, 60000);
+
+    const now = new Date();
+    lastSavedHour.current = now.getHours();
+
+    return () => clearInterval(interval);
+  }, [trafficLevel]);
 
   return (
     <div className="relative w-full h-full">
@@ -37,12 +104,29 @@ export default function YandexMapIframe() {
         title="Яндекс Карта"
         allow="geolocation"
       />
+      <iframe
+        src="/traffic-map/index.html"
+        width="0"
+        height="0"
+        style={{ display: "none" }}
+      />
 
-      {/* Легенда с уровнем загруженности */}
       <TrafficLegend
         level={trafficLevel}
-        time={currentTime.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
+        time={currentTime.toLocaleTimeString("ru-RU", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}
       />
     </div>
-  )
+  );
 }
+
+// Тип для записи о трафике
+type TrafficRecord = {
+  id: number;
+  date: string;
+  time: string;
+  level: number;
+  timestamp: number;
+};

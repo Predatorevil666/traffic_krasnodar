@@ -11,6 +11,11 @@
       "static/chunks/main-app.js",
       "static/css/app/page.css",
       "static/chunks/app/page.js"
+    ],
+    "/api/save-traffic-minute/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/save-traffic-minute/route.js"
     ]
   }
 }
