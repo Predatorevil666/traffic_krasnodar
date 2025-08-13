@@ -32,3 +32,4 @@ export function saveSettings(settings) {
 		return false;
 	}
 }
+
