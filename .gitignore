@@ -64,6 +64,3 @@ coverage/
 .env.test.local
 .env.production.local
 
-# Screenshots
-public/screenshots/
-screenshots/
