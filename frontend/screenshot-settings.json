@@ -1,6 +1,6 @@
 {
   "enabled": false,
-  "interval": 1,
+  "interval": 60,
   "startTime": "06:00",
-  "endTime": "12:00"
+  "endTime": "20:00"
 }

@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const screenshotService = require('./screenshot-service');
+// const screenshotService = require('./screenshot-service'); // Отключен - используем frontend сервис
 
 const app = express();
 const PORT = 3001;
@@ -34,7 +34,8 @@ app.get('/2gis', (req, res) => {
 	res.send(html);
 });
 
-// API для управления скриншотами
+// API для управления скриншотами - ОТКЛЮЧЕНО (используется Next.js API)
+/*
 app.post('/api/screenshot/configure', (req, res) => {
 	try {
 		const { enabled, interval, startTime, endTime } = req.body;
@@ -71,6 +72,7 @@ app.get('/api/screenshot/list', (req, res) => {
 		res.status(500).json({ success: false, error: error.message });
 	}
 });
+*/
 
 // Статические файлы для скриншотов
 app.use('/screenshots', express.static(path.join(__dirname, 'frontend', 'public', 'screenshots')));

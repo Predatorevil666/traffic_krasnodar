@@ -138,16 +138,25 @@ class ScreenshotService {
 				throw new Error('Page was closed before screenshot could be taken');
 			}
 
-			// Создаем имя файла с текущей датой и временем
+			// Создаем папку по дате и имя файла с датой и временем
 			const now = new Date();
-			const timestamp = now.getFullYear() + '-' +
+			const dateFolder = now.getFullYear() + '-' +
 				(now.getMonth() + 1).toString().padStart(2, '0') + '-' +
-				now.getDate().toString().padStart(2, '0') + '_' +
-				now.getHours().toString().padStart(2, '0') + '-' +
+				now.getDate().toString().padStart(2, '0');
+
+			const timeStamp = now.getHours().toString().padStart(2, '0') + '-' +
 				now.getMinutes().toString().padStart(2, '0');
 
-			const filename = `traffic_screenshot_${timestamp}.png`;
-			const filepath = path.join(process.cwd(), 'public', 'screenshots', filename);
+			// Проверяем, существует ли уже файл с таким именем, и добавляем счетчик если нужно
+			let filename = `traffic_screenshot_${dateFolder}_${timeStamp}.png`;
+			let filepath = path.join(process.cwd(), 'public', 'screenshots', dateFolder, filename);
+
+			let counter = 1;
+			while (fs.existsSync(filepath)) {
+				filename = `traffic_screenshot_${dateFolder}_${timeStamp}_${counter}.png`;
+				filepath = path.join(process.cwd(), 'public', 'screenshots', dateFolder, filename);
+				counter++;
+			}
 
 			// Убеждаемся что папка существует
 			const screenshotDir = path.dirname(filepath);
@@ -196,20 +205,41 @@ class ScreenshotService {
 			return [];
 		}
 
-		const files = fs.readdirSync(screenshotDir)
-			.filter(file => file.endsWith('.png'))
-			.map(file => {
-				const filepath = path.join(screenshotDir, file);
-				const stats = fs.statSync(filepath);
-				return {
-					filename: file,
-					created: stats.birthtime,
-					size: stats.size
-				};
-			})
-			.sort((a, b) => b.created - a.created);
+		const allScreenshots = [];
 
-		return files;
+		// Читаем все подпапки с датами
+		const dateFolders = fs.readdirSync(screenshotDir)
+			.filter(item => {
+				const itemPath = path.join(screenshotDir, item);
+				return fs.statSync(itemPath).isDirectory();
+			})
+			.sort((a, b) => b.localeCompare(a)); // Сортируем даты по убыванию (новые сначала)
+
+		// Собираем файлы из всех папок с датами
+		dateFolders.forEach(dateFolder => {
+			const dateFolderPath = path.join(screenshotDir, dateFolder);
+
+			if (fs.existsSync(dateFolderPath)) {
+				const files = fs.readdirSync(dateFolderPath)
+					.filter(file => file.endsWith('.png'))
+					.map(file => {
+						const filepath = path.join(dateFolderPath, file);
+						const stats = fs.statSync(filepath);
+						return {
+							filename: file,
+							date: dateFolder,
+							fullPath: `${dateFolder}/${file}`,
+							created: stats.birthtime,
+							size: stats.size
+						};
+					});
+
+				allScreenshots.push(...files);
+			}
+		});
+
+		// Сортируем по дате создания (новые сначала)
+		return allScreenshots.sort((a, b) => b.created - a.created);
 	}
 
 	// Очистка старых скриншотов (старше 7 дней)
@@ -223,22 +253,53 @@ class ScreenshotService {
 		const sevenDaysAgo = new Date();
 		sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-		const files = fs.readdirSync(screenshotDir);
 		let deletedCount = 0;
+		let deletedFolders = 0;
 
-		files.forEach(file => {
-			if (file.endsWith('.png')) {
-				const filepath = path.join(screenshotDir, file);
-				const stats = fs.statSync(filepath);
+		// Читаем все подпапки с датами
+		const dateFolders = fs.readdirSync(screenshotDir)
+			.filter(item => {
+				const itemPath = path.join(screenshotDir, item);
+				return fs.statSync(itemPath).isDirectory();
+			});
 
-				if (stats.birthtime < sevenDaysAgo) {
-					fs.unlinkSync(filepath);
-					deletedCount++;
-				}
+		dateFolders.forEach(dateFolder => {
+			const dateFolderPath = path.join(screenshotDir, dateFolder);
+
+			// Парсим дату из названия папки (формат YYYY-MM-DD)
+			const folderDate = new Date(dateFolder);
+
+			if (folderDate < sevenDaysAgo) {
+				// Удаляем всю папку если она старше 7 дней
+				const files = fs.readdirSync(dateFolderPath);
+				files.forEach(file => {
+					if (file.endsWith('.png')) {
+						fs.unlinkSync(path.join(dateFolderPath, file));
+						deletedCount++;
+					}
+				});
+
+				// Удаляем саму папку
+				fs.rmdirSync(dateFolderPath);
+				deletedFolders++;
+			} else {
+				// Для папок моложе 7 дней проверяем отдельные файлы
+				const files = fs.readdirSync(dateFolderPath);
+				files.forEach(file => {
+					if (file.endsWith('.png')) {
+						const filepath = path.join(dateFolderPath, file);
+						const stats = fs.statSync(filepath);
+
+						if (stats.birthtime < sevenDaysAgo) {
+							fs.unlinkSync(filepath);
+							deletedCount++;
+						}
+					}
+				});
 			}
 		});
 
-		console.log(`Cleaned up ${deletedCount} old screenshots`);
+		console.log(`Cleaned up ${deletedCount} old screenshots from ${deletedFolders} folders`);
 		return deletedCount;
 	}
 
@@ -274,9 +335,6 @@ async function getScreenshotService() {
 	if (!screenshotService) {
 		screenshotService = new ScreenshotService();
 
-		// Очищаем старые скриншоты при первом создании
-		screenshotService.cleanupOldScreenshots();
-
 		// Загружаем сохраненные настройки
 		try {
 			const { loadSettings } = await import('./settings-storage.js');
@@ -286,11 +344,6 @@ async function getScreenshotService() {
 		} catch (error) {
 			console.log('Could not load settings on init, using defaults');
 		}
-
-		// Очищаем старые скриншоты каждый день в 2:00
-		cronManager.schedule('cleanup', '0 2 * * *', () => {
-			screenshotService.cleanupOldScreenshots();
-		});
 	}
 	return screenshotService;
 }

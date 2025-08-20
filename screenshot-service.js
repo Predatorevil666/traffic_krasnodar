@@ -111,16 +111,25 @@ class ScreenshotService {
 			// Ждем загрузки карты
 			await page.waitForTimeout(5000);
 
-			// Создаем имя файла с текущей датой и временем
+			// Создаем папку по дате и имя файла с датой и временем
 			const now = new Date();
-			const timestamp = now.getFullYear() + '-' +
+			const dateFolder = now.getFullYear() + '-' +
 				(now.getMonth() + 1).toString().padStart(2, '0') + '-' +
-				now.getDate().toString().padStart(2, '0') + '_' +
-				now.getHours().toString().padStart(2, '0') + '-' +
+				now.getDate().toString().padStart(2, '0');
+
+			const timeStamp = now.getHours().toString().padStart(2, '0') + '-' +
 				now.getMinutes().toString().padStart(2, '0');
 
-			const filename = `traffic_screenshot_${timestamp}.png`;
-			const filepath = path.join(__dirname, 'frontend', 'public', 'screenshots', filename);
+			// Проверяем, существует ли уже файл с таким именем, и добавляем счетчик если нужно
+			let filename = `traffic_screenshot_${dateFolder}_${timeStamp}.png`;
+			let filepath = path.join(__dirname, 'frontend', 'public', 'screenshots', dateFolder, filename);
+
+			let counter = 1;
+			while (fs.existsSync(filepath)) {
+				filename = `traffic_screenshot_${dateFolder}_${timeStamp}_${counter}.png`;
+				filepath = path.join(__dirname, 'frontend', 'public', 'screenshots', dateFolder, filename);
+				counter++;
+			}
 
 			// Убеждаемся что папка существует
 			const screenshotDir = path.dirname(filepath);
@@ -160,50 +169,44 @@ class ScreenshotService {
 			return [];
 		}
 
-		const files = fs.readdirSync(screenshotDir)
-			.filter(file => file.endsWith('.png'))
-			.map(file => {
-				const filepath = path.join(screenshotDir, file);
-				const stats = fs.statSync(filepath);
-				return {
-					filename: file,
-					created: stats.birthtime,
-					size: stats.size
-				};
+		const allScreenshots = [];
+
+		// Читаем все подпапки с датами
+		const dateFolders = fs.readdirSync(screenshotDir)
+			.filter(item => {
+				const itemPath = path.join(screenshotDir, item);
+				return fs.statSync(itemPath).isDirectory();
 			})
-			.sort((a, b) => b.created - a.created);
+			.sort((a, b) => b.localeCompare(a)); // Сортируем даты по убыванию (новые сначала)
 
-		return files;
-	}
+		// Собираем файлы из всех папок с датами
+		dateFolders.forEach(dateFolder => {
+			const dateFolderPath = path.join(screenshotDir, dateFolder);
 
-	// Очистка старых скриншотов (старше 7 дней)
-	cleanupOldScreenshots() {
-		const screenshotDir = path.join(__dirname, 'frontend', 'public', 'screenshots');
+			if (fs.existsSync(dateFolderPath)) {
+				const files = fs.readdirSync(dateFolderPath)
+					.filter(file => file.endsWith('.png'))
+					.map(file => {
+						const filepath = path.join(dateFolderPath, file);
+						const stats = fs.statSync(filepath);
+						return {
+							filename: file,
+							date: dateFolder,
+							fullPath: `${dateFolder}/${file}`,
+							created: stats.birthtime,
+							size: stats.size
+						};
+					});
 
-		if (!fs.existsSync(screenshotDir)) {
-			return;
-		}
-
-		const sevenDaysAgo = new Date();
-		sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-		const files = fs.readdirSync(screenshotDir);
-		let deletedCount = 0;
-
-		files.forEach(file => {
-			if (file.endsWith('.png')) {
-				const filepath = path.join(screenshotDir, file);
-				const stats = fs.statSync(filepath);
-
-				if (stats.birthtime < sevenDaysAgo) {
-					fs.unlinkSync(filepath);
-					deletedCount++;
-				}
+				allScreenshots.push(...files);
 			}
 		});
 
-		console.log(`Cleaned up ${deletedCount} old screenshots`);
+		// Сортируем по дате создания (новые сначала)
+		return allScreenshots.sort((a, b) => b.created - a.created);
 	}
+
+
 
 	// Закрытие браузера
 	async closeBrowser() {
@@ -218,13 +221,7 @@ class ScreenshotService {
 // Создаем единственный экземпляр сервиса
 const screenshotService = new ScreenshotService();
 
-// Очищаем старые скриншоты при запуске
-screenshotService.cleanupOldScreenshots();
 
-// Очищаем старые скриншоты каждый день в 2:00
-cron.schedule('0 2 * * *', () => {
-	screenshotService.cleanupOldScreenshots();
-});
 
 module.exports = screenshotService;
 
