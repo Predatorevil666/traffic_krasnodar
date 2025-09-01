@@ -14,12 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-
-interface TrafficDataItem {
-  date: string; // год-месяц-чисто
-  score: number; // балл пробок
-  time: string; // ч:м:с
-}
+import { format } from "date-fns";
 
 interface TrafficExportProps {
   onClose: () => void;
@@ -35,60 +30,131 @@ export function TrafficExport({ onClose }: TrafficExportProps) {
   const [activeTab, setActiveTab] = useState<string>("range");
   const [isLoading, setIsLoading] = useState(false);
 
-  const saveToDatabase = async (data: TrafficDataItem[]) => {
+  const handleExport = async () => {
     setIsLoading(true);
+
     try {
-      const response = await fetch("/api/save-traffic", {
+      let exportStartDate: string;
+      let exportEndDate: string;
+      let filename: string;
+
+      if (activeTab === "range") {
+        if (!startDate || !endDate) {
+          alert("Пожалуйста, выберите диапазон дат");
+          return;
+        }
+
+        // Используем UTC даты для избежания проблем с часовыми поясами
+        exportStartDate = format(startDate, "yyyy-MM-dd");
+        exportEndDate = format(endDate, "yyyy-MM-dd");
+        filename = `traffic-data-${format(startDate, "dd-MM-yyyy")}-to-${format(
+          endDate,
+          "dd-MM-yyyy"
+        )}.xlsx`;
+      } else {
+        if (!singleDate) {
+          alert("Пожалуйста, выберите дату");
+          return;
+        }
+
+        exportStartDate = format(singleDate, "yyyy-MM-dd");
+        exportEndDate = format(singleDate, "yyyy-MM-dd");
+        filename = `traffic-data-${format(singleDate, "dd-MM-yyyy")}.xlsx`;
+      }
+
+      console.log("Exporting with dates:", exportStartDate, exportEndDate);
+
+      // Отправка запроса к API для экспорта
+      const response = await fetch("/api/export", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          startDate: exportStartDate,
+          endDate: exportEndDate,
+        }),
       });
-      if (!response.ok) throw new Error("Ошибка сохранения данных");
-      alert("Данные успешно сохранены в базу!");
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Ошибка при экспорте данных: ${errorText}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      onClose();
     } catch (error) {
-      console.error("Ошибка:", error);
-      alert("Произошла ошибка при сохранении данных");
+      console.error("Export error:", error);
+      alert("Произошла ошибка при экспорте данных: " + error.message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleExport = () => {
-    // В реальном приложении здесь был бы код для экспорта данных
-    if (activeTab === "range") {
-      console.log("Exporting traffic data for range:", { startDate, endDate });
+  // const saveToDatabase = async (data: TrafficDataItem[]) => {
+  //   setIsLoading(true);
+  //   try {
+  //     const response = await fetch("/api/save-traffic", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify(data),
+  //     });
+  //     if (!response.ok) throw new Error("Ошибка сохранения данных");
+  //     alert("Данные успешно сохранены в базу!");
+  //   } catch (error) {
+  //     console.error("Ошибка:", error);
+  //     alert("Произошла ошибка при сохранении данных");
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
 
-      // Имитация скачивания файла
-      const link = document.createElement("a");
-      link.href = "#";
-      link.setAttribute(
-        "download",
-        `traffic-data-${startDate?.toISOString().split("T")[0]}-to-${
-          endDate?.toISOString().split("T")[0]
-        }.xlsx`
-      );
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } else {
-      console.log("Exporting traffic data for single day:", singleDate);
+  // const handleExport = () => {
+  //   // В реальном приложении здесь был бы код для экспорта данных
+  //   if (activeTab === "range") {
+  //     console.log("Exporting traffic data for range:", { startDate, endDate });
 
-      // Имитация скачивания файла
-      const link = document.createElement("a");
-      link.href = "#";
-      link.setAttribute(
-        "download",
-        `traffic-data-${singleDate?.toISOString().split("T")[0]}.xlsx`
-      );
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    }
+  //     // Имитация скачивания файла
+  //     const link = document.createElement("a");
+  //     link.href = "#";
+  //     link.setAttribute(
+  //       "download",
+  //       `traffic-data-${startDate?.toISOString().split("T")[0]}-to-${
+  //         endDate?.toISOString().split("T")[0]
+  //       }.xlsx`
+  //     );
+  //     document.body.appendChild(link);
+  //     link.click();
+  //     link.remove();
+  //   } else {
+  //     console.log("Exporting traffic data for single day:", singleDate);
 
-    onClose();
-  };
+  //     // Имитация скачивания файла
+  //     const link = document.createElement("a");
+  //     link.href = "#";
+  //     link.setAttribute(
+  //       "download",
+  //       `traffic-data-${singleDate?.toISOString().split("T")[0]}.xlsx`
+  //     );
+  //     document.body.appendChild(link);
+  //     link.click();
+  //     link.remove();
+  //   }
+
+  //   onClose();
+  // };
+  //
 
   return (
     <Card className="border-0 shadow-none w-[350px]">

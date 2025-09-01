@@ -85,7 +85,7 @@ export default function YandexMapIframe() {
 
         // saveHourlyData(dateStr, trafficLevel, timeStr);
       }
-    }, 60000);
+    }, 120000);
 
     const now = new Date();
     lastSavedHour.current = now.getHours();
