@@ -24,8 +24,11 @@ export async function POST(request: NextRequest) {
 
     // Преобразуем даты из запроса в объекты Date и добавляем 1 день
     // чтобы компенсировать разницу в часовых поясах
-    const start = addDays(parse(startDate, "yyyy-MM-dd", new Date()), 1);
-    const end = addDays(parse(endDate, "yyyy-MM-dd", new Date()), 1);
+    const start = parse(startDate, "yyyy-MM-dd", new Date());
+    const end = parse(endDate, "yyyy-MM-dd", new Date());
+
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
 
     console.log(
       "Filtering from:",
