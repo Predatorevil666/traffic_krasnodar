@@ -1,0 +1,66 @@
+__pycache__
+.pytest_cache
+
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# .idea
+.idea
+.vscode
+
+# mypy
+.mypy_cache/
+
+# Ruff stuff:
+.ruff_cache/
+
+
+# Node.js dependencies
+node_modules/
+frontend/node_modules
+
+# Next.js
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/dist/
+
+# Next.js cache and build files
+frontend/.next/cache/
+frontend/.next/static/chunks/
+frontend/.next/app-build-manifest.json
+frontend/.next/build-manifest.json
+frontend/.next/export-marker.json
+frontend/.next/prerender-manifest.json
+frontend/.next/routes-manifest.json
+frontend/.next/server/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
