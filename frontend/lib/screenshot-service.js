@@ -14,15 +14,13 @@ class ScreenshotService {
 		this.isProcessing = false; // Флаг для предотвращения параллельных задач
 	}
 
-	// Извлечение реального балла пробок из страницы (аналогично backend/index.html)
-	async extractRealTrafficScore(page) {
+	// Извлечение реального балла пробок с текущей страницы
+	async extractTrafficScoreFromCurrentPage(page) {
 		try {
-			// Ждем загрузки карты
-			await page.waitForTimeout(5000);
+			console.log('Extracting traffic score from current page...');
 
-			// Извлекаем балл пробок из DOM (аналогично backend/index.html)
+			// Извлекаем балл пробок из DOM текущей страницы
 			const trafficScore = await page.evaluate(() => {
-				// Функция для извлечения балла из текста (копия из backend/index.html)
 				function extractTrafficScore(text) {
 					const match = text.match(/(\d+)\s+балл(а|ов)?/);
 					if (match && match[1]) {
@@ -31,14 +29,13 @@ class ScreenshotService {
 					return null;
 				}
 
-				// Ищем элементы пробок по частичному совпадению класса
+				// Ищем элементы пробок
 				const trafficElements = document.querySelectorAll('[class*="traffic"]');
-				console.log(`Найдено элементов с "traffic" в классе: ${trafficElements.length}`);
+				console.log(`Найдено элементов с "traffic": ${trafficElements.length}`);
 
 				for (let i = 0; i < trafficElements.length; i++) {
 					const element = trafficElements[i];
 					const text = element.textContent;
-					console.log(`Элемент ${i}: класс="${element.className}", текст="${text}"`);
 					const score = extractTrafficScore(text);
 					if (score) {
 						console.log(`Найден балл пробок: ${score}`);
@@ -46,16 +43,17 @@ class ScreenshotService {
 					}
 				}
 
-				// Дополнительно ищем по другим селекторам
+				// Дополнительный поиск по всем элементам
 				const allElements = document.querySelectorAll('*');
-				let foundElements = 0;
 				for (let i = 0; i < allElements.length; i++) {
 					const element = allElements[i];
 					const text = element.textContent;
 					if (text && text.includes('балл')) {
-						foundElements++;
-						console.log(`Элемент с "балл": класс="${element.className}", текст="${text.substring(0, 100)}"`);
-						if (foundElements > 10) break; // Ограничиваем вывод
+						const score = extractTrafficScore(text);
+						if (score) {
+							console.log(`Найден балл пробок в элементе: ${score}`);
+							return score;
+						}
 					}
 				}
 
@@ -70,7 +68,97 @@ class ScreenshotService {
 			console.error('Ошибка при извлечении балла пробок:', error);
 		}
 
-		// Fallback отключен - возвращаем null если не удалось извлечь реальный балл
+		console.log('Не удалось извлечь реальный балл пробок');
+		return null;
+	}
+
+	// Извлечение реального балла пробок с отдельной страницы
+	async extractRealTrafficScore(browser) {
+		let trafficPage = null;
+		try {
+			console.log('Opening separate page for traffic score extraction...');
+			trafficPage = await browser.newPage();
+			await trafficPage.setViewport({ width: 1920, height: 1200 });
+
+			// Заходим на техническую страницу с Яндекс картой
+			await trafficPage.goto('http://localhost:3000/yandex-map', {
+				waitUntil: 'domcontentloaded',
+				timeout: 30000
+			});
+
+			// Ждем загрузки Яндекс.Карт API
+			try {
+				await trafficPage.waitForFunction(() => !!window.ymaps, { timeout: 15000 });
+				console.log('Yandex Maps API loaded for traffic extraction');
+			} catch (error) {
+				console.log('Yandex Maps API wait timeout for traffic extraction');
+			}
+
+			// Ждем появления элементов карты
+			try {
+				await trafficPage.waitForSelector('[class*="ymaps"]', { timeout: 10000 });
+				console.log('Map elements appeared for traffic extraction');
+			} catch (error) {
+				console.log('Map elements wait timeout for traffic extraction');
+			}
+
+			// Пауза для инициализации карты
+			await new Promise(resolve => setTimeout(resolve, 8000));
+
+			// Извлекаем балл пробок из DOM
+			const trafficScore = await trafficPage.evaluate(() => {
+				function extractTrafficScore(text) {
+					const match = text.match(/(\d+)\s+балл(а|ов)?/);
+					if (match && match[1]) {
+						return parseInt(match[1]);
+					}
+					return null;
+				}
+
+				// Ищем элементы пробок
+				const trafficElements = document.querySelectorAll('[class*="traffic"]');
+				console.log(`Найдено элементов с "traffic": ${trafficElements.length}`);
+
+				for (let i = 0; i < trafficElements.length; i++) {
+					const element = trafficElements[i];
+					const text = element.textContent;
+					const score = extractTrafficScore(text);
+					if (score) {
+						console.log(`Найден балл пробок: ${score}`);
+						return score;
+					}
+				}
+
+				// Дополнительный поиск по всем элементам
+				const allElements = document.querySelectorAll('*');
+				for (let i = 0; i < allElements.length; i++) {
+					const element = allElements[i];
+					const text = element.textContent;
+					if (text && text.includes('балл')) {
+						const score = extractTrafficScore(text);
+						if (score) {
+							console.log(`Найден балл пробок в элементе: ${score}`);
+							return score;
+						}
+					}
+				}
+
+				return null;
+			});
+
+			if (trafficScore !== null) {
+				console.log(`Извлечен реальный балл пробок: ${trafficScore}`);
+				return trafficScore;
+			}
+		} catch (error) {
+			console.error('Ошибка при извлечении балла пробок:', error);
+		} finally {
+			if (trafficPage) {
+				await trafficPage.close();
+				console.log('Traffic extraction page closed');
+			}
+		}
+
 		console.log('Не удалось извлечь реальный балл пробок');
 		return null;
 	}
@@ -175,8 +263,19 @@ class ScreenshotService {
 			const taskId = Math.random().toString(36).substring(7);
 			console.log(`[TASK-${taskId}] Cron task triggered`);
 
-			if (globalProcessingLock || this.isProcessing) {
-				console.log(`[TASK-${taskId}] Skipping scheduled screenshot - previous task still running (global: ${globalProcessingLock}, local: ${this.isProcessing})`);
+			// Проверяем все виды блокировок
+			if (globalProcessingLock) {
+				console.log(`[TASK-${taskId}] Skipping - globalProcessingLock is active`);
+				return;
+			}
+
+			if (this.isProcessing) {
+				console.log(`[TASK-${taskId}] Skipping - isProcessing is active`);
+				return;
+			}
+
+			if (!acquireLock()) {
+				console.log(`[TASK-${taskId}] Skipping - could not acquire file lock`);
 				return;
 			}
 
@@ -190,9 +289,11 @@ class ScreenshotService {
 					console.log(`[TASK-${taskId}] Screenshot completed, releasing locks`);
 					this.isProcessing = false;
 					globalProcessingLock = false;
+					releaseLock();
 				}
 			} else {
 				console.log(`[TASK-${taskId}] Skipping scheduled screenshot - outside time range or disabled`);
+				releaseLock();
 			}
 		});
 	}
@@ -232,32 +333,46 @@ class ScreenshotService {
 		try {
 			// Создаем новый браузер для каждого скриншота для стабильности
 			console.log('Launching new browser instance...');
-			browser = await puppeteer.launch({
-				headless: "new",
-				args: [
-					'--no-sandbox',
-					'--disable-setuid-sandbox',
-					'--disable-dev-shm-usage',
-					'--disable-gpu',
-					'--disable-web-security'
-				]
-			});
+
+			// Совместимый запуск браузера для Puppeteer 21.x и 22.x
+			const browserArgs = [
+				'--no-sandbox',
+				'--disable-setuid-sandbox',
+				'--disable-dev-shm-usage',
+				'--disable-gpu',
+				'--disable-web-security'
+			];
+
+			try {
+				// Сначала пробуем новый headless режим (Puppeteer 21.x+)
+				browser = await puppeteer.launch({
+					headless: "new",
+					args: browserArgs
+				});
+			} catch (error) {
+				// Fallback для старых версий или если "new" не поддерживается
+				console.log('Falling back to legacy headless mode');
+				browser = await puppeteer.launch({
+					headless: true,
+					args: browserArgs
+				});
+			}
 
 			page = await browser.newPage();
 
-			// Устанавливаем размер экрана
-			await page.setViewport({ width: 1920, height: 1080 });
+			// Устанавливаем размер экрана (увеличиваем высоту для карты)
+			await page.setViewport({ width: 1920, height: 1200 });
 
-			// Переходим на страницу с реальной Яндекс картой в Next.js
-			console.log('Navigating to http://localhost:3000/yandex-map...');
-			await page.goto('http://localhost:3000/yandex-map', {
+			// Переходим на ГЛАВНУЮ страницу для скриншота (там дорожные события включены по умолчанию)
+			console.log('Navigating to http://localhost:3000 for screenshot...');
+			await page.goto('http://localhost:3000', {
 				waitUntil: 'domcontentloaded',
 				timeout: 30000
 			});
 
-			// Ждем загрузки карты дольше
-			console.log('Waiting for page to load...');
-			await page.waitForTimeout(3000);
+			// Ждем загрузки главной страницы
+			console.log('Waiting for main page to load...');
+			await new Promise(resolve => setTimeout(resolve, 3000));
 
 			// Проверяем, что страница все еще активна
 			if (page.isClosed()) {
@@ -300,8 +415,11 @@ class ScreenshotService {
 
 			console.log(`Screenshot saved: ${filename}`);
 
-			// Извлекаем реальный балл пробок из страницы
-			const trafficLevel = await this.extractRealTrafficScore(page);
+			// Извлекаем реальный балл пробок с отдельной страницы yandex-map
+			console.log('Extracting traffic score from yandex-map...');
+			const trafficLevel = await this.extractRealTrafficScore(browser);
+			console.log('Traffic level extracted:', trafficLevel);
+
 			const trafficRecord = {
 				dateIso: now.toISOString(),
 				timestamp: now.getTime(),
@@ -309,6 +427,8 @@ class ScreenshotService {
 				filename,
 				path: path.join('public', 'screenshots', dateFolder, filename)
 			};
+
+			console.log('Appending traffic record:', trafficRecord);
 			this.appendTrafficRecord(trafficRecord);
 
 			return { success: true, filename, filepath };
@@ -331,7 +451,7 @@ class ScreenshotService {
 
 	// Ручное создание скриншота
 	async takeManualScreenshot() {
-		if (globalProcessingLock || this.isProcessing) {
+		if (globalProcessingLock || this.isProcessing || !acquireLock()) {
 			console.log('Cannot take manual screenshot - another screenshot is in progress');
 			return { success: false, error: 'Another screenshot is already in progress' };
 		}
@@ -344,6 +464,7 @@ class ScreenshotService {
 		} finally {
 			this.isProcessing = false;
 			globalProcessingLock = false;
+			releaseLock();
 		}
 	}
 
@@ -467,6 +588,68 @@ class ScreenshotService {
 let screenshotService = null;
 // Глобальная блокировка для предотвращения параллельных скриншотов
 let globalProcessingLock = false;
+
+// Файловая блокировка для межпроцессного взаимодействия
+const lockFilePath = path.join(process.cwd(), 'screenshot.lock');
+
+function acquireLock() {
+	try {
+		// Проверяем глобальную блокировку в памяти
+		if (globalProcessingLock) {
+			console.log('Global processing lock active');
+			return false;
+		}
+
+		// Ждем случайное время для избежания гонки условий
+		const randomDelay = Math.random() * 200;
+		const start = Date.now();
+		while (Date.now() - start < randomDelay) {
+			// Короткая пауза
+		}
+
+		if (fs.existsSync(lockFilePath)) {
+			// Проверяем возраст файла блокировки (если старше 1 минуты - удаляем)
+			const stats = fs.statSync(lockFilePath);
+			const lockAge = Date.now() - stats.mtime.getTime();
+			if (lockAge > 60 * 1000) { // 1 минута
+				fs.unlinkSync(lockFilePath);
+				console.log('Removed stale lock file');
+			} else {
+				console.log('Lock file exists, task blocked');
+				return false; // Блокировка активна
+			}
+		}
+
+		// Атомарная запись с проверкой
+		fs.writeFileSync(lockFilePath, `${process.pid}-${Date.now()}`, { flag: 'wx' });
+
+		// Устанавливаем глобальную блокировку
+		globalProcessingLock = true;
+		console.log('Lock acquired successfully');
+		return true;
+	} catch (error) {
+		if (error.code === 'EEXIST') {
+			console.log('Lock file created by another process');
+			return false;
+		}
+		console.error('Error acquiring lock:', error);
+		return false;
+	}
+}
+
+function releaseLock() {
+	try {
+		// Сбрасываем глобальную блокировку
+		globalProcessingLock = false;
+
+		if (fs.existsSync(lockFilePath)) {
+			fs.unlinkSync(lockFilePath);
+		}
+		console.log('Lock released successfully');
+	} catch (error) {
+		console.error('Error releasing lock:', error);
+	}
+}
 
 // Функция для полной перезагрузки сервиса
 function resetScreenshotService() {

@@ -25,7 +25,7 @@ export default function YandexMapPage() {
 				// Создаем карту
 				const map = new ymaps.Map("map", {
 					center: [45.035470, 39.025650], // Краснодар
-					zoom: 10,
+					zoom: 13, // Увеличиваем масштаб для детального вида
 					controls: []
 				})
 
@@ -33,7 +33,11 @@ export default function YandexMapPage() {
 				console.log("Добавляем контрол пробок")
 				const trafficControl = new ymaps.control.TrafficControl({
 					shown: true,
-					providerKey: 'traffic#actual'
+					providerKey: 'traffic#actual',
+					state: {
+						providerKey: 'traffic#actual',
+						trafficShown: true
+					}
 				})
 				map.controls.add(trafficControl)
 
@@ -41,6 +45,101 @@ export default function YandexMapPage() {
 				setTimeout(() => {
 					console.log("Активируем пробки принудительно")
 					trafficControl.showTraffic()
+
+					// Дополнительно включаем пробки через провайдер
+					map.layers.add('traffic#actual')
+
+					// Включаем дорожные события через слой карты
+					console.log("Включаем дорожные события")
+					try {
+						// Добавляем слой дорожных событий
+						map.layers.add('traffic#events')
+						console.log("Слой дорожных событий добавлен")
+
+						// Альтернативный способ - через провайдер
+						const eventsProvider = ymaps.traffic.provider.Actual
+						if (eventsProvider) {
+							map.layers.add(eventsProvider.getEventsLayer())
+							console.log("Слой событий через провайдер добавлен")
+						}
+					} catch (e) {
+						console.log("Ошибка при добавлении событий:", e)
+					}
+
+					// Проверяем статус слоев и пытаемся кликнуть на кнопки событий
+					setTimeout(() => {
+						const layers = map.layers.getAll()
+						console.log("Активные слои карты:", layers.length)
+						layers.forEach((layer: any, index: number) => {
+							console.log(`Слой ${index}:`, layer.toString())
+						})
+
+						// Пытаемся найти и кликнуть чекбокс дорожных событий
+						try {
+							// Ищем чекбокс дорожных событий в правой панели
+							let foundEventsCheckbox = false
+
+							// Ищем все чекбоксы
+							const checkboxes = document.querySelectorAll('input[type="checkbox"]')
+							console.log(`Найдено чекбоксов: ${checkboxes.length}`)
+
+							checkboxes.forEach((checkbox, i) => {
+								const label = checkbox.parentElement
+								const labelText = label?.textContent || ''
+								console.log(`Чекбокс ${i}: "${labelText}", checked: ${(checkbox as HTMLInputElement).checked}`)
+
+								if ((labelText.includes('события') || labelText.includes('События')) &&
+									!(checkbox as HTMLInputElement).checked) {
+									console.log("Найден НЕ отмеченный чекбокс дорожных событий, кликаем!")
+										; (checkbox as HTMLElement).click()
+									foundEventsCheckbox = true
+								}
+							})
+
+							if (!foundEventsCheckbox) {
+								console.log("Чекбокс дорожных событий не найден, пробуем другие способы...")
+
+								// Способ 1: Поиск по тексту "Дорожные события"
+								const textElements = document.querySelectorAll('*')
+								for (let i = 0; i < textElements.length; i++) {
+									const element = textElements[i]
+									const text = element.textContent || ''
+									if (text.includes('Дорожные события') || text.includes('дорожные события')) {
+										console.log("Найден элемент с текстом 'Дорожные события':", element.tagName, element.className)
+										const checkbox = element.querySelector('input[type="checkbox"]') ||
+											element.parentElement?.querySelector('input[type="checkbox"]')
+										if (checkbox && !(checkbox as HTMLInputElement).checked) {
+											console.log("Кликаем по чекбоксу дорожных событий через текст")
+												; (checkbox as HTMLElement).click()
+											foundEventsCheckbox = true
+											break
+										}
+									}
+								}
+
+								// Способ 2: Если не нашли, пробуем кликнуть по второму чекбоксу (обычно события идут вторыми)
+								if (!foundEventsCheckbox) {
+									const allCheckboxes = document.querySelectorAll('input[type="checkbox"]:not(:checked)')
+									if (allCheckboxes.length > 0) {
+										console.log(`Пробуем кликнуть по первому неотмеченному чекбоксу из ${allCheckboxes.length}`)
+											; (allCheckboxes[0] as HTMLElement).click()
+										foundEventsCheckbox = true
+									}
+								}
+
+								// Способ 3: Поиск по классам Яндекс карт
+								if (!foundEventsCheckbox) {
+									const ymapsCheckboxes = document.querySelectorAll('[class*="ymaps"] input[type="checkbox"]:not(:checked)')
+									if (ymapsCheckboxes.length > 0) {
+										console.log(`Найдены ymaps чекбоксы: ${ymapsCheckboxes.length}, кликаем по первому`)
+											; (ymapsCheckboxes[0] as HTMLElement).click()
+									}
+								}
+							}
+						} catch (e) {
+							console.log("Ошибка при поиске чекбокса:", e)
+						}
+					}, 3000)
 
 					try {
 						const isShown = trafficControl.isTrafficShown()
