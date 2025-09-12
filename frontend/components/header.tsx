@@ -11,6 +11,7 @@ export function Header() {
 	const [isScreenshotOpen, setIsScreenshotOpen] = useState(false)
 	const [isExportOpen, setIsExportOpen] = useState(false)
 	const [screenshotStatus, setScreenshotStatus] = useState(null)
+	const [currentDateTime, setCurrentDateTime] = useState('')
 
 	// Загружаем статус при монтировании компонента
 	useEffect(() => {
@@ -36,13 +37,43 @@ export function Header() {
 		return () => clearInterval(interval)
 	}, [])
 
+	// Обновляем дату и время каждую секунду
+	useEffect(() => {
+		const updateDateTime = () => {
+			const now = new Date()
+			const day = String(now.getDate()).padStart(2, '0')
+			const month = String(now.getMonth() + 1).padStart(2, '0')
+			const year = now.getFullYear()
+			const hours = String(now.getHours()).padStart(2, '0')
+			const minutes = String(now.getMinutes()).padStart(2, '0')
+			const seconds = String(now.getSeconds()).padStart(2, '0')
+			
+			setCurrentDateTime(`${day}/${month}/${year} ${hours}:${minutes}:${seconds}`)
+		}
+
+		// Обновляем сразу
+		updateDateTime()
+
+		// Обновляем каждую секунду
+		const interval = setInterval(updateDateTime, 1000)
+
+		return () => clearInterval(interval)
+	}, [])
+
 	return (
 		<div className="w-full bg-white shadow-md p-2 flex items-center justify-between z-10">
-			<div className="flex items-center gap-2">
+			<div className="flex items-center gap-2 flex-1">
 				<h1 className="text-xl font-bold">Управление дорожным движением</h1>
 			</div>
 
-			<div className="flex items-center gap-2">
+			{/* Дата и время по центру */}
+			<div className="flex items-center justify-center flex-1">
+				<div className="text-lg font-semibold text-gray-700 bg-gray-100 px-4 py-2 rounded-md border">
+					{currentDateTime}
+				</div>
+			</div>
+
+			<div className="flex items-center gap-2 flex-1 justify-end">
 				<Popover open={isScreenshotOpen} onOpenChange={setIsScreenshotOpen}>
 					<PopoverTrigger asChild>
 						<Button
